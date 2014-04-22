@@ -94,7 +94,7 @@ public class Main extends JFrame {
 	 * Create the frame.
 	 */
 	public Main() {
-		setTitle("JMLOK");
+		setTitle("JMLOK 2.0");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 506, 180);
 		contentPane = new JPanel();
