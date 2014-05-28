@@ -29,7 +29,7 @@ public class Constants {
 	public static final int OPENJML_COMPILER = 1;
 	//Constants that indicates the path to jml compilers.
 	public static final String OPENJML_SRC = "C:" + FILE_SEPARATOR + "openjml";
-	public static final String JMLC_LIB = "C:"+FILE_SEPARATOR+"JML";
+	public static final String JMLC_LIB = System.getenv("JMLDIR");
 	public static final String JMLC_SRC = JMLC_LIB + FILE_SEPARATOR + "bin" + FILE_SEPARATOR;
 	
 }
