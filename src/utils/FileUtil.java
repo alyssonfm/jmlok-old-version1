@@ -350,7 +350,11 @@ public class FileUtil {
 	 * @return The String to be executed in Runtime execution.
 	 */
 	public static String getCommandToUseRandoop(String timeout, String pathToRandoop, String liblist){
-		return "java -cp \"" + pathToRandoop + ";" + Constants.SOURCE_BIN + ";" + liblist + "\" randoop.main.Main gentests --classlist=" + 
+		if(System.getProperty("os.name").contains("Windows"))
+			return "java -cp \"" + pathToRandoop + ";" + Constants.SOURCE_BIN + ";" + liblist + "\" randoop.main.Main gentests --classlist=" + 
 				Constants.CLASSES +	" --timelimit=" + timeout + " --junit-output-dir=" + Constants.TEST_DIR;
+		else
+			return "java -cp " + pathToRandoop + ";" + Constants.SOURCE_BIN + ";" + liblist + " randoop.main.Main gentests --classlist=" + 
+			Constants.CLASSES +	" --timelimit=" + timeout + " --junit-output-dir=" + Constants.TEST_DIR;	
 	}
 }
