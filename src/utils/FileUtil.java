@@ -31,21 +31,27 @@ import org.w3c.dom.Element;
 public class FileUtil {
 
 	/**
-	 * Returns a list of path names from files in a same paste, separated by an ';'
+	 * Returns a list of path names from files in a same paste, separated by a ';'.
 	 * @param libFolder Folder to list its files.
-	 * @return String containing list of path names from files in a same paste, separated by an ';'.
+	 * @return String containing list of path names from files in a same paste, separated by a ';',
+	 * for Windows and separated by a ':' for others.
 	 */
 	public static String getListPathPrinted(String libFolder) {
+		if(libFolder.equals(""))
+			return libFolder;
 		File dir = new File(libFolder);
-
 		if (!dir.exists()) {
 			throw new RuntimeException("Directory " + dir.getAbsolutePath()
 					+ " does not exist.");
 		}
 		File[] arquivos = dir.listFiles();
+		// Separator must be correctly settled to classLoader work
+		String separator = (System.getProperty("os.name").contains("Windows"))?";":":";
 		String toReturn = "";
 		for (File file : arquivos) {
-			toReturn += file.toString() + ";";
+			if(file.toString().contains(".jar")){
+				toReturn += file.toString() + separator;
+			}
 		}
 		return toReturn;
 	}
@@ -350,11 +356,12 @@ public class FileUtil {
 	 * @return The String to be executed in Runtime execution.
 	 */
 	public static String getCommandToUseRandoop(String timeout, String pathToRandoop, String liblist){
-		if(System.getProperty("os.name").contains("Windows"))
-			return "java -cp \"" + pathToRandoop + ";" + Constants.SOURCE_BIN + ";" + liblist + "\" randoop.main.Main gentests --classlist=" + 
+		String bruteCommand = "java -cp \"" + pathToRandoop + ";" + Constants.SOURCE_BIN + ((liblist.equals("")) ? ("") : (";" + liblist)) + "\" randoop.main.Main gentests --classlist=" + 
 				Constants.CLASSES +	" --timelimit=" + timeout + " --junit-output-dir=" + Constants.TEST_DIR;
+		if(System.getProperty("os.name").contains("Windows"))
+			return bruteCommand;
 		else
-			return "java -cp " + pathToRandoop + ";" + Constants.SOURCE_BIN + ";" + liblist + " randoop.main.Main gentests --classlist=" + 
-			Constants.CLASSES +	" --timelimit=" + timeout + " --junit-output-dir=" + Constants.TEST_DIR;	
+			return bruteCommand.replaceAll(";", ":");	
 	}
+	
 }

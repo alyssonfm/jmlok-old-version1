@@ -1,10 +1,12 @@
-
 package detect;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
 
@@ -148,13 +150,19 @@ public class Detect {
 	 * @throws Exception When the XML cannot be read.
 	 */
 	public void javaCompile(String sourceFolder, String libFolder) throws Exception{
+		boolean isWindows = System.getProperty("os.name").contains("Windows");
 		jmlLib = jmlLib + libFolder;
 		File buildFile = null;
 		try {
-			buildFile = new File("ant" + Constants.FILE_SEPARATOR + "javaCompile.xml");
+			if(isWindows)
+				buildFile = new File("ant" + Constants.FILE_SEPARATOR + "javaCompile.xml");
+			else
+				buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "javaCompile.xml");
 		} catch (Exception e) {
-			throw new Exception("Erro ao ler o "
-					+ "ant" + Constants.FILE_SEPARATOR + "javaCompile.xml");
+			e.printStackTrace();
+			throw new Exception("Error while trying to access file "
+					+ "ant" + Constants.FILE_SEPARATOR + "javaCompile.xml"
+							+ " Diretório atual: " + jarPath());
 		}
 		Project p = new Project();
 		p.setUserProperty("source_folder", sourceFolder);
@@ -164,8 +172,41 @@ public class Detect {
 		p.init();
 		ProjectHelper helper = ProjectHelper.getProjectHelper();
 		p.addReference("ant.projectHelper", helper);
-		helper.parse(p, buildFile);
-		p.executeTarget("compile_project");
+		try {
+			helper.parse(p, buildFile);			
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new Exception(e.getMessage() + "Error while trying to read file "
+					+ "ant" + Constants.FILE_SEPARATOR + "javaCompile.xml"
+							+ " Diretório atual: " + jarPath());
+		}
+		try {
+			p.executeTarget("compile_project");			
+		} catch (Exception e) {
+			throw new Exception("Error executing "
+					+ "ant" + Constants.FILE_SEPARATOR + "javaCompile.xml ant file\n"
+					+ "Valor of variables: -> source_folder = \"" + sourceFolder + "\"\n"
+					+ "                    -> source_bin    = \"" + Constants.SOURCE_BIN + "\"\n"
+					+ "                    -> lib           = \"" + libFolder + "\"\n"
+					+ "                    -> jmllib        = \"" + jmlLib + "\"\n");
+		}
+		// p.executeTarget("compile_project");
+	}
+
+//	private URL jarURL() {
+//		// Option 1: >URL url = Bar.class.getProtectionDomain().getCodeSource().getLocation();
+//		// Option 2: >URL url = Bar.class.getResource(Bar.class.getSimpleName() + ".class");
+//		return Detect.class.getProtectionDomain().getCodeSource().getLocation();
+//	}
+	
+	private String jarPath() {
+		Path path = null;
+		try {
+			path = Paths.get(Detect.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+		return path.getParent().toString();
 	}
 	
 	/**
@@ -175,14 +216,16 @@ public class Detect {
 	 * @throws Exception When the XML cannot be read.
 	 */
 	public void generateTests(String libFolder, String timeout) throws Exception{
+		boolean isWindows = System.getProperty("os.name").contains("Windows");
 		jmlLib = jmlLib + libFolder;
 		File buildFile = null;
 		Runtime rt = Runtime.getRuntime();
 		
 		String pathToRandoop;
-		pathToRandoop = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();			
+		pathToRandoop = jarPath() + Constants.FILE_SEPARATOR + "lib" + Constants.FILE_SEPARATOR + "randoop.jar";			
 		//pathToRandoop = "D:\\Dropbox\\workspace\\JMLOK-Exe\\lib\\randoop.jar";
-		
+		//pathToRandoop = System.getenv("HOME") + Constants.FILE_SEPARATOR + "workspace/JMLOK-2/lib/randoop.jar"; 
+		// String s = FileUtil.getListPathPrinted(libFolder) + pathToRandoop;
 		Process proc = rt.exec(FileUtil.getCommandToUseRandoop(timeout, pathToRandoop, FileUtil.getListPathPrinted(libFolder)));
 		final InputStreamReader ou = new InputStreamReader(proc.getInputStream());
 		final InputStreamReader er = new InputStreamReader(proc.getErrorStream());
@@ -222,14 +265,19 @@ public class Detect {
 
 		int exitVal = proc.waitFor();
 		if(exitVal != 0) 
-			throw new Exception("Error reading: " + pathToRandoop);
-		
+			throw new Exception("Error reading: " + pathToRandoop + "\n"
+					+ "Java couldn't run Randoop. Verify if command below works."
+					+ "Command Used -> " + FileUtil.getCommandToUseRandoop(timeout, pathToRandoop, FileUtil.getListPathPrinted(libFolder) + pathToRandoop));
 		
 		try {
-			buildFile = new File("ant" + Constants.FILE_SEPARATOR + "generateTests.xml");
+			if(isWindows)
+				buildFile = new File("ant" + Constants.FILE_SEPARATOR + "generateTests.xml");
+			else
+				buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "generateTests.xml");
 		} catch (Exception e) {
 			throw new Exception("Erro ao ler o "
-					+ "ant" + Constants.FILE_SEPARATOR + "generateTests.xml");
+					+ "ant" + Constants.FILE_SEPARATOR + "generateTests.xml"
+							+ " Diretório atual: " + this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath());
 		}
 		Project p = new Project();
 		p.setUserProperty("classes", Constants.CLASSES);
@@ -253,11 +301,15 @@ public class Detect {
 	 * @throws Exception When the XML cannot be read.
 	 */
 	public void jmlCompile(String sourceFolder) throws Exception{
+		boolean isWindows = System.getProperty("os.name").contains("Windows");
 		File buildFile = null;
 		if(FileUtil.hasDirectories(sourceFolder)){
 			if(isJMLC){
 				try {
-					buildFile = new File("ant" + Constants.FILE_SEPARATOR + "jmlcCompiler.xml");					
+					if(isWindows)
+						buildFile = new File("ant" + Constants.FILE_SEPARATOR + "jmlcCompiler.xml");
+					else
+						buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "jmlcCompiler.xml");
 				} catch (Exception e) {
 					throw new Exception("Erro ao ler o "
 							+ "ant" + Constants.FILE_SEPARATOR + "jmlcCompiler.xml");
@@ -273,7 +325,10 @@ public class Detect {
 				p.executeTarget("jmlc");
 			} else if(isOpenJML){
 				try {
-					buildFile = new File("ant" + Constants.FILE_SEPARATOR + "openjmlCompiler.xml");
+					if(isWindows)
+						buildFile = new File("ant" + Constants.FILE_SEPARATOR + "openjmlCompiler.xml");
+					else
+						buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "openjmlCompiler.xml");
 				} catch (Exception e) {
 					throw new Exception("Erro ao ler o "
 							+ "ant" + Constants.FILE_SEPARATOR + "openjmlCompiler.xml");
@@ -290,7 +345,10 @@ public class Detect {
 		} else {
 			if(isJMLC){
 				try {
-					buildFile = new File("ant" + Constants.FILE_SEPARATOR + "jmlcCompiler2.xml");					
+					if(isWindows)
+						buildFile = new File("ant" + Constants.FILE_SEPARATOR + "jmlcCompiler2.xml");
+					else
+						buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "jmlcCompiler2.xml");
 				} catch (Exception e) {
 					throw new Exception("Erro ao ler o "
 							+ "ant" + Constants.FILE_SEPARATOR + "jmlcCompiler2.xml");
@@ -306,7 +364,10 @@ public class Detect {
 				p.executeTarget("jmlc");
 			} else if(isOpenJML){
 				try {
-					buildFile = new File("ant" + Constants.FILE_SEPARATOR + "openjmlCompiler2.xml");
+					if(isWindows)
+						buildFile = new File("ant" + Constants.FILE_SEPARATOR + "openjmlCompiler2.xml");
+					else
+						buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "openjmlCompiler2.xml");
 				} catch (Exception e) {
 					throw new Exception("Erro ao ler o "
 							+ "ant" + Constants.FILE_SEPARATOR + "openjmlCompiler2.xml");
@@ -329,9 +390,13 @@ public class Detect {
 	 * @throws Exception When the XML cannot be read.
 	 */
 	private void runTests(String libFolder) throws Exception{
+		boolean isWindows = System.getProperty("os.name").contains("Windows");
 		File buildFile = null;
 		try {
-			buildFile = new File("ant" + Constants.FILE_SEPARATOR + "runTests.xml");			
+			if(isWindows)
+				buildFile = new File("ant" + Constants.FILE_SEPARATOR + "runTests.xml");
+			else
+				buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "runTests.xml");
 		} catch (Exception e) {
 			throw new Exception("Erro ao ler o "
 					+ "ant" + Constants.FILE_SEPARATOR + "runTests.xml");

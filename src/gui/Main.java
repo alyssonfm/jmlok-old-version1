@@ -181,7 +181,10 @@ public class Main extends JFrame {
 		String extLibFolder = textFieldExtLibFolder.getText();
 		String time = textFieldTime.getText();
 		if(extLibFolder.equals("")) {
-			extLibFolder = Constants.JMLC_LIB;
+			if(System.getProperty("os.name").contains("Windows"))
+				extLibFolder = Constants.JMLC_LIB;
+			else
+				extLibFolder = System.getenv("USER_CLASSPATH_LIB");
 		}if(time.equals("")){
 			time = "10";
 		}
