@@ -108,11 +108,11 @@ public class Controller {
 	 */
 	
 	private static void setSystemVariableClassPath(String libFolder) {
-		boolean isLinux = System.getProperty("os.name").equals("Linux");
-		String separator = (isLinux)?":":";";
+		boolean isWindows = System.getProperty("os.name").contains("Windows");
+		String separator = (isWindows)?";":":";
 		// ClassLoader must know source directory
 		String pathVar = "." + separator  + FileUtil.getListPathPrinted(libFolder);
-		for(String jar : pathVar.split((isLinux)?":":";")){
+		for(String jar : pathVar.split(separator)){
 			try {
 				ClassPathHacker.addFile(jar);
 			} catch (IOException e) {

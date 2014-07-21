@@ -4,6 +4,10 @@ import java.awt.Cursor;
 import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
@@ -16,6 +20,10 @@ import javax.swing.SwingWorker;
 import javax.swing.border.EmptyBorder;
 
 import utils.Constants;
+
+import javax.swing.SwingConstants;
+
+import detect.Detect;
 
 /**
  * Main class to the GUI. Represents the first screen showed to JMLOK user.
@@ -86,7 +94,6 @@ public class Main extends JFrame {
             done = true;
             btnRun.setEnabled(true);
             setCursor(null); //turn off the wait cursor
-            resetProgram();
         }
     }
 	
@@ -155,10 +162,14 @@ public class Main extends JFrame {
 			public void actionPerformed(ActionEvent e) {
 				if(textFieldSrcFolder.getText().equals(""))
 					JOptionPane.showMessageDialog(Main.this, "Choose the source folder before running.");
+				else if(!textFieldTime.getText().matches("\\d+"))
+					JOptionPane.showMessageDialog(Main.this, "Please insert a valid number of seconds.");
+				else if(!System.getProperty("os.name").contains("Windows") && !(System.getenv("CLASSPATH").contains("randoop.jar")))
+					JOptionPane.showMessageDialog(Main.this, "The file randoop.jar was not configured using JMLOKSetup. Please runs JMLOKSetup again and put randoop.jar into your choosen ext lib folder.");
 				else{	
 					btnRun.setEnabled(false);
 			        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-			        //Instances of javax.swing.SwingWorker are not reusuable, so
+			        //Instances of javax.swing.SwingWorker are not reusable, so
 			        //we create new instances as needed.
 			        task = new Task();
 			        task.execute();
@@ -171,6 +182,15 @@ public class Main extends JFrame {
 		lblSeconds = new JLabel("seconds");
 		lblSeconds.setBounds(215, 83, 70, 15);
 		contentPane.add(lblSeconds);
+		
+		JButton btnClean = new JButton("Clean");
+		btnClean.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				resetProgram();
+			}
+		});
+		btnClean.setBounds(358, 82, 82, 25);
+		contentPane.add(btnClean);
 	}
 
 	/**
@@ -207,6 +227,7 @@ public class Main extends JFrame {
 	protected void browseExtLibFolder() {
 		dirLibs.setApproveButtonText("Select");
 		dirLibs.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+		dirLibs.setCurrentDirectory(new File(jarPath()));
 		if (dirLibs.showOpenDialog(Main.this) == JFileChooser.APPROVE_OPTION) {
 			textFieldExtLibFolder.setText(dirLibs.getSelectedFile().getAbsolutePath());
 		}
@@ -218,8 +239,19 @@ public class Main extends JFrame {
 	protected void browseSrcFolder() {
 		dirSources.setApproveButtonText("Select");
 		dirSources.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+		dirSources.setCurrentDirectory(new File(jarPath()));
 		if (dirSources.showOpenDialog(Main.this) == JFileChooser.APPROVE_OPTION) {
 			textFieldSrcFolder.setText(dirSources.getSelectedFile().getAbsolutePath());
 		}
+	}
+	
+	private String jarPath() {
+		Path path = null;
+		try {
+			path = Paths.get(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+		return path.getParent().toString();
 	}
 }

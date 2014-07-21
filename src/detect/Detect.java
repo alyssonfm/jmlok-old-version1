@@ -24,7 +24,7 @@ import utils.FileUtil;
  */
 public class Detect {
 
-	private boolean isLinux = false;
+	private boolean isWindows = false;
 	private boolean isJMLC = false;
 	private boolean isOpenJML = false;
 	private String jmlLib;
@@ -54,7 +54,7 @@ public class Detect {
 		default:
 			break;
 		}
-		isLinux = System.getProperty("os.name").equals("Linux");
+		isWindows = System.getProperty("os.name").contains("Windows");
 	}
 	
 	/**
@@ -150,7 +150,6 @@ public class Detect {
 	 * @throws Exception When the XML cannot be read.
 	 */
 	public void javaCompile(String sourceFolder, String libFolder) throws Exception{
-		boolean isWindows = System.getProperty("os.name").contains("Windows");
 		jmlLib = jmlLib + libFolder;
 		File buildFile = null;
 		try {
@@ -216,7 +215,6 @@ public class Detect {
 	 * @throws Exception When the XML cannot be read.
 	 */
 	public void generateTests(String libFolder, String timeout) throws Exception{
-		boolean isWindows = System.getProperty("os.name").contains("Windows");
 		jmlLib = jmlLib + libFolder;
 		File buildFile = null;
 		Runtime rt = Runtime.getRuntime();
@@ -301,7 +299,6 @@ public class Detect {
 	 * @throws Exception When the XML cannot be read.
 	 */
 	public void jmlCompile(String sourceFolder) throws Exception{
-		boolean isWindows = System.getProperty("os.name").contains("Windows");
 		File buildFile = null;
 		if(FileUtil.hasDirectories(sourceFolder)){
 			if(isJMLC){
@@ -317,7 +314,7 @@ public class Detect {
 				Project p = new Project();
 				p.setUserProperty("source_folder", sourceFolder);
 				p.setUserProperty("jmlBin", Constants.JML_BIN);
-				p.setUserProperty("jmlcExec", (isLinux)?(Constants.JMLC_SRC + "jmlc-unix"):(Constants.JMLC_SRC+"jmlc.bat"));
+				p.setUserProperty("jmlcExec", (isWindows)?(Constants.JMLC_SRC+"jmlc.bat"):(Constants.JMLC_SRC + "jmlc-unix"));
 				p.init();
 				ProjectHelper helper = ProjectHelper.getProjectHelper();
 				p.addReference("ant.projectHelper", helper);
@@ -356,7 +353,7 @@ public class Detect {
 				Project p = new Project();
 				p.setUserProperty("source_folder", sourceFolder);
 				p.setUserProperty("jmlBin", Constants.JML_BIN);
-				p.setUserProperty("jmlcExec", (isLinux)?(Constants.JMLC_SRC + "jmlc-unix"):("jmlc.bat"));
+				p.setUserProperty("jmlcExec", (isWindows)?("jmlc.bat"):(Constants.JMLC_SRC + "jmlc-unix"));
 				p.init();
 				ProjectHelper helper = ProjectHelper.getProjectHelper();
 				p.addReference("ant.projectHelper", helper);
@@ -390,7 +387,6 @@ public class Detect {
 	 * @throws Exception When the XML cannot be read.
 	 */
 	private void runTests(String libFolder) throws Exception{
-		boolean isWindows = System.getProperty("os.name").contains("Windows");
 		File buildFile = null;
 		try {
 			if(isWindows)
