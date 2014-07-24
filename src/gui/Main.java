@@ -21,10 +21,6 @@ import javax.swing.border.EmptyBorder;
 
 import utils.Constants;
 
-import javax.swing.SwingConstants;
-
-import detect.Detect;
-
 /**
  * Main class to the GUI. Represents the first screen showed to JMLOK user.
  * @author Alysson Milanez and Dennis Sousa.

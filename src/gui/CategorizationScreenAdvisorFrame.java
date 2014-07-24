@@ -3,6 +3,12 @@ package gui;
 import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.File;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 import javax.swing.JButton;
@@ -22,8 +28,8 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultHighlighter;
 import javax.swing.text.Highlighter;
 
-import controller.Controller;
 import categorize.Nonconformance;
+import controller.Controller;
 
 /**
  * Shown an Screen for Categorization info of the program.
@@ -51,6 +57,7 @@ public class CategorizationScreenAdvisorFrame extends JFrame {
 	private Highlighter.HighlightPainter painter;
 	private JLabel lblNonconfomancesNumberSetter;
 	private JFileChooser dirLibs;
+	private JFrame actualFrame = this;
 	
 
 	/**
@@ -174,6 +181,16 @@ public class CategorizationScreenAdvisorFrame extends JFrame {
 		panel.setBounds(582, 27, 192, 301);
 		contentPane.add(panel);
 		
+		actualFrame .addWindowStateListener(new WindowAdapter() {
+			
+			@Override
+			public void windowStateChanged(WindowEvent e){
+				if(e.getNewState() == JFrame.MAXIMIZED_BOTH){
+					actualFrame.setExtendedState(JFrame.NORMAL);
+				}
+			}
+		});
+
 	}
 
 	/**
@@ -184,6 +201,7 @@ public class CategorizationScreenAdvisorFrame extends JFrame {
 		String path = "";
 		dirLibs.setApproveButtonText("Select");
 		dirLibs.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+		dirLibs.setCurrentDirectory(new File(jarPath()));
 		if (dirLibs.showOpenDialog(CategorizationScreenAdvisorFrame.this) == JFileChooser.APPROVE_OPTION) {
 			path = dirLibs.getSelectedFile().getAbsolutePath();
 		}
@@ -195,6 +213,17 @@ public class CategorizationScreenAdvisorFrame extends JFrame {
 		}
 	}
 
+	private String jarPath() {
+		Path path = null;
+		try {
+			path = Paths.get(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+		return path.getParent().toString();
+	}
+
+	
 	/**
 	 * Execute some changes in labels, when user select some items from the list of nonconformances.
 	 */
