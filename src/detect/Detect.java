@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -11,6 +13,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.tools.ant.DefaultLogger;
 import org.apache.tools.ant.Project;
 import org.apache.tools.ant.ProjectHelper;
 
@@ -65,11 +68,16 @@ public class Detect {
 	 * @return - The list of nonconformances detected.
 	 * @throws Exception When some XML cannot be read.
 	 */
-	public Set<TestError> detect(String source, String lib, String timeout) throws Exception {
-		execute(source, lib, timeout);
-		ResultProducer r = new ResultProducer();
-		if(isJMLC) return r.listErrors(Constants.JMLC_COMPILER);
-		else return r.listErrors(Constants.OPENJML_COMPILER);
+	public Set<TestError> detect(String source, String lib, String timeout){
+		try {
+			execute(source, lib, timeout);			
+			ResultProducer r = new ResultProducer();
+			if(isJMLC) return r.listErrors(Constants.JMLC_COMPILER);
+			else return r.listErrors(Constants.OPENJML_COMPILER);
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+			return null;
+		}
 	}
 	
 	/**
@@ -80,20 +88,28 @@ public class Detect {
 	 * @throws Exception When some XML cannot be read.
 	 */
 	public void execute(String sourceFolder, String libFolder, String timeout) throws Exception {
-		getClassListFile(sourceFolder);
-
-		System.out.println("Creating directories...");
-		
-		createDirectories();
-		cleanDirectories();
-		System.out.println("Compiling the project...");
-		javaCompile(sourceFolder, libFolder);
-		System.out.println("Compiling with JML compiler...");
-		jmlCompile(sourceFolder);
-		System.out.println("Generating tests...");
-		generateTests(libFolder, timeout);
-		System.out.println("Running JUnit to test the JML code...");
-		runTests(libFolder);
+		try {
+			getClassListFile(sourceFolder);
+			
+			System.out.println("Creating directories...");
+			
+			createDirectories();
+			cleanDirectories();
+			System.out.println("Compiling the project...");
+			javaCompile(sourceFolder, libFolder);
+			System.out.println("Compiling with JML compiler...");
+			jmlCompile(sourceFolder);
+			if(!FileUtil.getListPathPrinted(Constants.JML_BIN, FileUtil.DIRECTORIES).equals("")){
+				System.out.println("Generating tests...");
+				generateTests(libFolder, timeout);
+				System.out.println("Running JUnit to test the JML code...");
+				runTests(libFolder);
+			}else{
+				throw new Exception("JML couldn't compile the files.");
+			}
+		} catch (Exception e) {
+			throw new Exception(e.getMessage());
+		}
 	}
 
 	/**
@@ -147,65 +163,21 @@ public class Detect {
 	 * Method to Java compilation of the files (needed for tests generation).
 	 * @param sourceFolder = the path to source files.
 	 * @param libFolder = the path to external libraries needed to Java compilation.
-	 * @throws Exception When the XML cannot be read.
+	 * @throws Exception problem with ANT projects.
 	 */
 	public void javaCompile(String sourceFolder, String libFolder) throws Exception{
+		final StringBuilder buff = new StringBuilder();
 		jmlLib = jmlLib + libFolder;
-		File buildFile = null;
-		try {
-			if(isWindows)
-				buildFile = new File("ant" + Constants.FILE_SEPARATOR + "javaCompile.xml");
-			else
-				buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "javaCompile.xml");
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new Exception("Error while trying to access file "
-					+ "ant" + Constants.FILE_SEPARATOR + "javaCompile.xml"
-							+ " Diretório atual: " + jarPath());
-		}
+
+		// Run ant file
 		Project p = new Project();
+		DefaultLogger consoleLogger = createLogger(buff);
+		File buildFile = accessFile("javaCompile.xml");
 		p.setUserProperty("source_folder", sourceFolder);
 		p.setUserProperty("source_bin", Constants.SOURCE_BIN);
 		p.setUserProperty("lib", libFolder);
-		p.setUserProperty("jmlLib", jmlLib);
-		p.init();
-		ProjectHelper helper = ProjectHelper.getProjectHelper();
-		p.addReference("ant.projectHelper", helper);
-		try {
-			helper.parse(p, buildFile);			
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new Exception(e.getMessage() + "Error while trying to read file "
-					+ "ant" + Constants.FILE_SEPARATOR + "javaCompile.xml"
-							+ " Diretório atual: " + jarPath());
-		}
-		try {
-			p.executeTarget("compile_project");			
-		} catch (Exception e) {
-			throw new Exception("Error executing "
-					+ "ant" + Constants.FILE_SEPARATOR + "javaCompile.xml ant file\n"
-					+ "Valor of variables: -> source_folder = \"" + sourceFolder + "\"\n"
-					+ "                    -> source_bin    = \"" + Constants.SOURCE_BIN + "\"\n"
-					+ "                    -> lib           = \"" + libFolder + "\"\n"
-					+ "                    -> jmllib        = \"" + jmlLib + "\"\n");
-		}
-		// p.executeTarget("compile_project");
-	}
-
-//	private URL jarURL() {
-//		// Option 1: >URL url = Bar.class.getProtectionDomain().getCodeSource().getLocation();
-//		// Option 2: >URL url = Bar.class.getResource(Bar.class.getSimpleName() + ".class");
-//		return Detect.class.getProtectionDomain().getCodeSource().getLocation();
-//	}
-	
-	private String jarPath() {
-		Path path = null;
-		try {
-			path = Paths.get(Detect.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		}
-		return path.getParent().toString();
+		p.setUserProperty("jmlLib", jmlLib);		
+		runProject(buff, p, buildFile, "javaCompile.xml", "compile_project", consoleLogger);
 	}
 	
 	/**
@@ -215,16 +187,42 @@ public class Detect {
 	 * @throws Exception When the XML cannot be read.
 	 */
 	public void generateTests(String libFolder, String timeout) throws Exception{
+		final StringBuilder buff = new StringBuilder();
 		jmlLib = jmlLib + libFolder;
-		File buildFile = null;
-		Runtime rt = Runtime.getRuntime();
 		
+		// Run Randoop
 		String pathToRandoop;
-		pathToRandoop = jarPath() + Constants.FILE_SEPARATOR + "lib" + Constants.FILE_SEPARATOR + "randoop.jar";			
-		//pathToRandoop = "D:\\Dropbox\\workspace\\JMLOK-Exe\\lib\\randoop.jar";
-		//pathToRandoop = System.getenv("HOME") + Constants.FILE_SEPARATOR + "workspace/JMLOK-2/lib/randoop.jar"; 
-		// String s = FileUtil.getListPathPrinted(libFolder) + pathToRandoop;
-		Process proc = rt.exec(FileUtil.getCommandToUseRandoop(timeout, pathToRandoop, FileUtil.getListPathPrinted(libFolder)));
+		pathToRandoop = getJARPath() + Constants.FILE_SEPARATOR + "lib" 
+					  + Constants.FILE_SEPARATOR + "randoop.jar";			
+		runRandoop(libFolder, timeout, pathToRandoop);
+		
+		// Run ant file
+		Project p = new Project();
+		DefaultLogger consoleLogger = createLogger(buff);
+		File buildFile = accessFile("generateTests.xml");
+		p.setUserProperty("classes", Constants.CLASSES);
+		p.setUserProperty("source_bin", Constants.SOURCE_BIN);
+		p.setUserProperty("tests_src", Constants.TEST_DIR);
+		p.setUserProperty("tests_bin", Constants.TEST_BIN);
+		p.setUserProperty("tests_folder", Constants.TESTS);
+		p.setUserProperty("lib", libFolder);
+		p.setUserProperty("jmlLib", jmlLib);
+		p.setUserProperty("timeout", timeout);
+		runProject(buff, p, buildFile, "generateTests.xml", "compile_tests", consoleLogger);
+	}
+	
+	/**
+	 * Uses a command to run Randoop to generate tests.
+	 * @param libFolder = the path to external libraries needed to tests generation and compilation.
+	 * @param timeout = the time to tests generation.
+	 * @param pathToRandoop = location of Randoop JAR.
+	 * @throws IOException = bad command interpretation.
+	 * @throws InterruptedException = bad command.
+	 */
+	private void runRandoop(String libFolder, String timeout,
+			String pathToRandoop) throws IOException, InterruptedException {
+		Runtime runtime = Runtime.getRuntime();
+		Process proc = runtime.exec(FileUtil.getCommandToUseRandoop(timeout, pathToRandoop, FileUtil.getListPathPrinted(libFolder, FileUtil.JAR_FILES)));
 		final InputStreamReader ou = new InputStreamReader(proc.getInputStream());
 		final InputStreamReader er = new InputStreamReader(proc.getErrorStream());
 		final BufferedReader bo = new BufferedReader(ou); 
@@ -262,155 +260,173 @@ public class Detect {
 
 
 		int exitVal = proc.waitFor();
-		if(exitVal != 0) 
-			throw new Exception("Error reading: " + pathToRandoop + "\n"
+		if(exitVal != 0) {
+			System.out.println("Error reading: " + pathToRandoop + "\n"
 					+ "Java couldn't run Randoop. Verify if command below works."
-					+ "Command Used -> " + FileUtil.getCommandToUseRandoop(timeout, pathToRandoop, FileUtil.getListPathPrinted(libFolder) + pathToRandoop));
-		
-		try {
-			if(isWindows)
-				buildFile = new File("ant" + Constants.FILE_SEPARATOR + "generateTests.xml");
-			else
-				buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "generateTests.xml");
-		} catch (Exception e) {
-			throw new Exception("Erro ao ler o "
-					+ "ant" + Constants.FILE_SEPARATOR + "generateTests.xml"
-							+ " Diretório atual: " + this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath());
+					+ "Command Used -> " + FileUtil.getCommandToUseRandoop(timeout, pathToRandoop, FileUtil.getListPathPrinted(libFolder, FileUtil.JAR_FILES) + pathToRandoop));
 		}
-		Project p = new Project();
-		p.setUserProperty("classes", Constants.CLASSES);
-		p.setUserProperty("source_bin", Constants.SOURCE_BIN);
-		p.setUserProperty("tests_src", Constants.TEST_DIR);
-		p.setUserProperty("tests_bin", Constants.TEST_BIN);
-		p.setUserProperty("tests_folder", Constants.TESTS);
-		p.setUserProperty("lib", libFolder);
-		p.setUserProperty("jmlLib", jmlLib);
-		p.setUserProperty("timeout", timeout);
-		p.init();
-		ProjectHelper helper = ProjectHelper.getProjectHelper();
-		p.addReference("ant.projectHelper", helper);
-		helper.parse(p, buildFile);
-		p.executeTarget("compile_tests");
 	}
 	
 	/**
 	 * Method used to do the JML compilation of the files.
 	 * @param sourceFolder = the source of files to be compiled.
-	 * @throws Exception When the XML cannot be read.
+	 * @throws Exception problem with ANT projects.
 	 */
 	public void jmlCompile(String sourceFolder) throws Exception{
-		File buildFile = null;
+		final StringBuilder buff = new StringBuilder();
 		if(FileUtil.hasDirectories(sourceFolder)){
 			if(isJMLC){
-				try {
-					if(isWindows)
-						buildFile = new File("ant" + Constants.FILE_SEPARATOR + "jmlcCompiler.xml");
-					else
-						buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "jmlcCompiler.xml");
-				} catch (Exception e) {
-					throw new Exception("Erro ao ler o "
-							+ "ant" + Constants.FILE_SEPARATOR + "jmlcCompiler.xml");
-				}
-				Project p = new Project();
-				p.setUserProperty("source_folder", sourceFolder);
-				p.setUserProperty("jmlBin", Constants.JML_BIN);
-				p.setUserProperty("jmlcExec", (isWindows)?(Constants.JMLC_SRC+"jmlc.bat"):(Constants.JMLC_SRC + "jmlc-unix"));
-				p.init();
-				ProjectHelper helper = ProjectHelper.getProjectHelper();
-				p.addReference("ant.projectHelper", helper);
-				helper.parse(p, buildFile);
-				p.executeTarget("jmlc");
+				runJMLCompiler(sourceFolder, buff, "jmlcCompiler.xml", isJMLC);
 			} else if(isOpenJML){
-				try {
-					if(isWindows)
-						buildFile = new File("ant" + Constants.FILE_SEPARATOR + "openjmlCompiler.xml");
-					else
-						buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "openjmlCompiler.xml");
-				} catch (Exception e) {
-					throw new Exception("Erro ao ler o "
-							+ "ant" + Constants.FILE_SEPARATOR + "openjmlCompiler.xml");
-				}
-				Project p = new Project();
-				p.setUserProperty("source_folder", sourceFolder);
-				p.setUserProperty("jmlBin", Constants.JML_BIN);
-				p.init();
-				ProjectHelper helper = ProjectHelper.getProjectHelper();
-				p.addReference("ant.projectHelper", helper);
-				helper.parse(p, buildFile);
-				p.executeTarget("openJML");
+				runJMLCompiler(sourceFolder, buff, "openjmlCompiler.xml", isJMLC);
 			}
 		} else {
 			if(isJMLC){
-				try {
-					if(isWindows)
-						buildFile = new File("ant" + Constants.FILE_SEPARATOR + "jmlcCompiler2.xml");
-					else
-						buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "jmlcCompiler2.xml");
-				} catch (Exception e) {
-					throw new Exception("Erro ao ler o "
-							+ "ant" + Constants.FILE_SEPARATOR + "jmlcCompiler2.xml");
-				}
-				Project p = new Project();
-				p.setUserProperty("source_folder", sourceFolder);
-				p.setUserProperty("jmlBin", Constants.JML_BIN);
-				p.setUserProperty("jmlcExec", (isWindows)?("jmlc.bat"):(Constants.JMLC_SRC + "jmlc-unix"));
-				p.init();
-				ProjectHelper helper = ProjectHelper.getProjectHelper();
-				p.addReference("ant.projectHelper", helper);
-				helper.parse(p, buildFile);
-				p.executeTarget("jmlc");
+				runJMLCompiler(sourceFolder, buff, "jmlcCompiler2.xml", isJMLC);
 			} else if(isOpenJML){
-				try {
-					if(isWindows)
-						buildFile = new File("ant" + Constants.FILE_SEPARATOR + "openjmlCompiler2.xml");
-					else
-						buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "openjmlCompiler2.xml");
-				} catch (Exception e) {
-					throw new Exception("Erro ao ler o "
-							+ "ant" + Constants.FILE_SEPARATOR + "openjmlCompiler2.xml");
-				}
-				Project p = new Project();
-				p.setUserProperty("source_folder", sourceFolder);
-				p.setUserProperty("jmlBin", Constants.JML_BIN);
-				p.init();
-				ProjectHelper helper = ProjectHelper.getProjectHelper();
-				p.addReference("ant.projectHelper", helper);
-				helper.parse(p, buildFile);
-				p.executeTarget("openJML");
+				runJMLCompiler(sourceFolder, buff, "openjmlCompiler2.xml", isJMLC);
 			}
 		}
+	}
+
+	/**
+	 * Run respective JML compiler.
+	 * @param sourceFolder = the source of files to be compiled.
+	 * @param buff = where error an log will be printed.
+	 * @param nameFile = name of .xml to be executed.
+	 * @param isJMLC = true if JML compiler used will be jmlc, false, if OpenJML.
+	 * @throws Exception problems with ANT projects.
+	 */
+	private void runJMLCompiler(String sourceFolder, final StringBuilder buff,
+			String nameFile, boolean isJMLC) throws Exception{
+		Project p = new Project();
+		DefaultLogger consoleLogger = createLogger(buff);
+		File buildFile = setJMLProperties(sourceFolder, nameFile, p);
+		if(isJMLC)
+			p.setUserProperty("jmlcExec", (isWindows)?(Constants.JMLC_SRC+"jmlc.bat"):(Constants.JMLC_SRC + "jmlc-unix"));
+		runProject(buff, p, buildFile, nameFile, "jmlc", consoleLogger);
+	}
+	
+	/**
+	 * Set common properties to run JML compiler.
+	 * @param sourceFolder = the source of files to be compiled.
+	 * @param nameFile = name of .xml to be executed.
+	 * @param p = project to be run.
+	 * @return buildFile to be parsed.
+	 */
+	private File setJMLProperties(String sourceFolder, String nameFile, Project p){
+		File buildFile;
+		buildFile = accessFile(nameFile);
+		p.setUserProperty("source_folder", sourceFolder);
+		p.setUserProperty("jmlBin", Constants.JML_BIN);
+		return buildFile;
 	}
 	
 	/**
 	 * Method used to run the tests with the JML oracles.
 	 * @param libFolder = the path to external libraries needed to tests execution.
-	 * @throws Exception When the XML cannot be read.
+	 * @throws Exception problems with ANT project.
 	 */
 	private void runTests(String libFolder) throws Exception{
-		File buildFile = null;
-		try {
-			if(isWindows)
-				buildFile = new File("ant" + Constants.FILE_SEPARATOR + "runTests.xml");
-			else
-				buildFile = new File(new File(jarPath()), "ant" + Constants.FILE_SEPARATOR + "runTests.xml");
-		} catch (Exception e) {
-			throw new Exception("Erro ao ler o "
-					+ "ant" + Constants.FILE_SEPARATOR + "runTests.xml");
-		}
+		final StringBuilder buff = new StringBuilder();
+		
+		// Run ant file
 		Project p = new Project();
+		DefaultLogger consoleLogger = createLogger(buff);
+		File buildFile = accessFile("runTests.xml");
 		p.setUserProperty("lib", libFolder);
 		p.setUserProperty("jmlBin", Constants.JML_BIN);
 		if(isJMLC) p.setUserProperty("jmlCompiler", Constants.JMLC_SRC);
 		else if(isOpenJML) p.setUserProperty("jmlCompiler", Constants.OPENJML_SRC);
 		p.setUserProperty("tests_src", Constants.TEST_DIR);
 		p.setUserProperty("tests_bin", Constants.TEST_BIN);
+		runProject(buff, p, buildFile, "runTests.xml", "run_tests", consoleLogger);
+	}
+	
+	/**
+	 * Run specify ANT project.
+	 * @param buff = where log will be printed.
+	 * @param p = project to be run.
+	 * @param buildFile = buildFile to be parsed.
+	 * @param nameFile = name of .xml to be executed.
+	 * @param targetName = name of ANT process.
+	 * @param consoleLogger = logger who will print error and info about ANT execution.
+	 * @throws Exception parsing or executing ANT problems.
+	 */
+	private void runProject(final StringBuilder buff, Project p, File buildFile, String nameFile, String targetName, DefaultLogger consoleLogger) throws Exception {
+		p.addBuildListener(consoleLogger);
 		p.init();
 		ProjectHelper helper = ProjectHelper.getProjectHelper();
-		p.addReference("ant.projectHelper", helper);
-		helper.parse(p, buildFile);
-		p.executeTarget("run_tests");
+		p.addReference("ant.projectHelper", helper);		
+		try {
+			helper.parse(p, buildFile);			
+		} catch (Exception e) {
+			System.out.println(buff.toString());
+			throw new Exception("Error while trying to parse file "
+					+ "ant" + Constants.FILE_SEPARATOR + nameFile
+					+ " Running directory: " + getJARPath());
+		}
+		try {
+			p.executeTarget(targetName);			
+		} catch (Exception e) {
+			System.out.println(buff.toString());
+			throw new Exception(e.getMessage());
+		}
+		System.out.println(buff.toString());
+	}
+	
+	/**
+	 * Defines an Logger to transmit info about ANT execution to an StringBuffer.
+	 * @param buff buffer that will receive info about ANT execution.
+	 * @return Logger to transmit info about ANT execution to an StringBuffer.
+	 */
+	private DefaultLogger createLogger(final StringBuilder buff) {
+		DefaultLogger consoleLogger = new DefaultLogger();
+		consoleLogger.setErrorPrintStream(new PrintStream(new OutputStream() {  
+            public void write(int b) throws IOException {                
+                buff.append(String.valueOf((char) b));  
+            }
+            }));
+		consoleLogger.setOutputPrintStream(new PrintStream(new OutputStream() {  
+	           public void write(int b) throws IOException {  
+	               buff.append(String.valueOf((char) b));  
+	           }  
+	           }));
+		consoleLogger.setMessageOutputLevel(Project.MSG_INFO);
+		return consoleLogger;
+	}
+	
+	/**
+	 * Access ant file to be run.
+	 * @param nameFile name of the file to be run.
+	 * @return File of ant file that will be run.
+	 */
+	private File accessFile(String nameFile) {
+		File buildFile = null;
+		try {
+			if(isWindows)
+				buildFile = new File("ant" + Constants.FILE_SEPARATOR + nameFile);
+			else
+				buildFile = new File(new File(getJARPath()), "ant" + Constants.FILE_SEPARATOR + nameFile);
+		} catch (Exception e) {
+			System.out.println("Error while trying to access file "
+					+ "ant" + Constants.FILE_SEPARATOR + nameFile
+					+ " Running directory: " + getJARPath());
+		}
+		return buildFile;
+	}
+	
+	/**
+	 * Return jar path of this program itself, where are being executed.
+	 * @return jar path of this program itself, where are being executed.
+	 */
+	private String getJARPath() {
+		Path path = null;
+		try {
+			path = Paths.get(Detect.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+		return path.getParent().toString();
 	}
 }
-
-
-// D:\Dropbox\Exemplos\CarJustPrecondition

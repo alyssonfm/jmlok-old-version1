@@ -30,13 +30,17 @@ import org.w3c.dom.Element;
  */
 public class FileUtil {
 
+	public static String JAR_FILES = ".jar";
+	public static String DIRECTORIES = "files";
+	
 	/**
 	 * Returns a list of path names from files in a same paste, separated by a ';'.
 	 * @param libFolder Folder to list its files.
+	 * @param formatSearched format to be searched.
 	 * @return String containing list of path names from files in a same paste, separated by a ';',
 	 * for Windows and separated by a ':' for others.
 	 */
-	public static String getListPathPrinted(String libFolder) {
+	public static String getListPathPrinted(String libFolder, String formatSearched) {
 		if(libFolder.equals(""))
 			return libFolder;
 		File dir = new File(libFolder);
@@ -48,9 +52,15 @@ public class FileUtil {
 		// Separator must be correctly settled to classLoader work
 		String separator = (System.getProperty("os.name").contains("Windows"))?";":":";
 		String toReturn = "";
-		for (File file : arquivos) {
-			if(file.toString().contains(".jar")){
+		if(formatSearched.equals(FileUtil.DIRECTORIES)){
+			for (File file : arquivos) {
 				toReturn += file.toString() + separator;
+			}
+		}else{
+			for (File file : arquivos) {
+				if(file.toString().contains(formatSearched)){
+					toReturn += file.toString() + separator;
+				}
 			}
 		}
 		return toReturn;

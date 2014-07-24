@@ -76,7 +76,11 @@ public class Controller {
 	    EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					DetectionScreenAdvisorFrame frame = new DetectionScreenAdvisorFrame(caos);
+					DetectionScreenAdvisorFrame frame;
+					if(errors != null)
+						frame = new DetectionScreenAdvisorFrame(caos, true);
+					else
+						frame = new DetectionScreenAdvisorFrame(caos, false);
 					frame.setVisible(true);
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -111,7 +115,7 @@ public class Controller {
 		boolean isWindows = System.getProperty("os.name").contains("Windows");
 		String separator = (isWindows)?";":":";
 		// ClassLoader must know source directory
-		String pathVar = "." + separator  + FileUtil.getListPathPrinted(libFolder);
+		String pathVar = "." + separator  + FileUtil.getListPathPrinted(libFolder, FileUtil.JAR_FILES);
 		for(String jar : pathVar.split(separator)){
 			try {
 				ClassPathHacker.addFile(jar);
