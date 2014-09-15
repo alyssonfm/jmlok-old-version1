@@ -1,5 +1,8 @@
 package utils;
 
+import java.awt.Color;
+import java.awt.Font;
+
 /**
  * Class that storage the main constants used in the JMLOK project.
  * @author Alysson Milanez and Dennis Sousa.
@@ -31,5 +34,7 @@ public class Constants {
 	public static final String OPENJML_SRC = "C:" + FILE_SEPARATOR + "openjml";
 	public static final String JMLC_LIB = System.getenv("JMLDIR");
 	public static final String JMLC_SRC = JMLC_LIB + FILE_SEPARATOR + "bin" + FILE_SEPARATOR;
-	
+	//Related to Gui
+	public static final Font MAIN_FONT = new Font("Verdana", 0, 18);
+	public static final Color HILIT_COLOR = Color.YELLOW;
 }

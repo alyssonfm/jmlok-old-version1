@@ -1,21 +1,32 @@
 package gui;
 
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
+import java.util.ArrayList;
+import java.util.List;
 
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.SpringLayout;
 import javax.swing.border.EmptyBorder;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
+import utils.Constants;
+import utils.FileUtil;
 import controller.Controller;
+import detect.Detect;
+import detect.DetectEvent;
+import detect.DetectListener;
 
 /**
  * Screen shown after Detection phase, executed by the program. An advisor screen
@@ -26,68 +37,155 @@ import controller.Controller;
 public class DetectionScreenAdvisorFrame extends JFrame {
 
 	private static final long serialVersionUID = 7840357361061019283L;
+	private static final int WIDTH = 700;
+	private static final int HEIGHT = 400;
 	private JPanel contentPane;
-	private JFrame actualFrame = this;
-	private boolean detectionSuceeded = false;
+	private boolean detectionSuceeded;
+	private SpringLayout springLayout;
+	private ByteArrayOutputStream baos;
+	private JTextArea textArea;
+	private JButton btnNexts;
+	private JProgressBar progressBar;
+	private JLabel lblDetectionPhaseIs;
 
 	/**
 	 * Create the frame.
 	 */
-	public DetectionScreenAdvisorFrame(ByteArrayOutputStream baos, boolean detectionSuceeded) {
-		setDetectionSuceeded(detectionSuceeded);
+	public DetectionScreenAdvisorFrame(Detect d, ByteArrayOutputStream caos) {
+		FileUtil.setUIFont(new javax.swing.plaf.FontUIResource(Constants.MAIN_FONT));
+		
+		setDetectionSuceeded(true);
 		
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 700, 520);
+		setBounds(100, 100, 700, 458);
+		setMinimumSize(new Dimension(DetectionScreenAdvisorFrame.WIDTH, DetectionScreenAdvisorFrame.HEIGHT));
+		
+		List<Image> icons = new ArrayList<Image>();
+		icons.add((Image) new ImageIcon(getClass().getResource("images/logo(16x16).jpg")).getImage());
+		icons.add((Image) new ImageIcon(getClass().getResource("images/logo(32x32).jpg")).getImage());
+		icons.add((Image) new ImageIcon(getClass().getResource("images/logo(64x64).jpg")).getImage());
+		icons.add((Image) new ImageIcon(getClass().getResource("images/logo(128x128).jpg")).getImage());
+		setIconImages(icons);
+		
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
-		contentPane.setLayout(null);
+		springLayout = new SpringLayout();
+		contentPane.setLayout(springLayout);
 		
-		JLabel lblDetectionPhaseIs = new JLabel("Detection Phase finished.");
-		lblDetectionPhaseIs.setBounds(30, 17, 219, 15);
+		lblDetectionPhaseIs = new JLabel("Current Stage: " + "Creating Directories");
+		springLayout.putConstraint(SpringLayout.NORTH, lblDetectionPhaseIs, 10, SpringLayout.NORTH, contentPane);
+		springLayout.putConstraint(SpringLayout.EAST, lblDetectionPhaseIs, 405, SpringLayout.WEST, contentPane);
+		springLayout.putConstraint(SpringLayout.WEST, lblDetectionPhaseIs, 30, SpringLayout.WEST, contentPane);
+		lblDetectionPhaseIs.setFont(new Font("Verdana", Font.BOLD, 18));
 		contentPane.add(lblDetectionPhaseIs);
 		
+		JScrollPane scrollPane = new JScrollPane();
+		springLayout.putConstraint(SpringLayout.NORTH, scrollPane, 45, SpringLayout.NORTH, contentPane);
+		springLayout.putConstraint(SpringLayout.WEST, scrollPane, 12, SpringLayout.WEST, contentPane);
+		springLayout.putConstraint(SpringLayout.SOUTH, scrollPane, -45, SpringLayout.SOUTH, contentPane);
+		springLayout.putConstraint(SpringLayout.EAST, scrollPane, -12, SpringLayout.EAST, contentPane);
+		contentPane.add(scrollPane);
+		
+		btnNexts = new JButton("Nonconformances");
+		springLayout.putConstraint(SpringLayout.NORTH, btnNexts, 0, SpringLayout.NORTH, lblDetectionPhaseIs);
+		springLayout.putConstraint(SpringLayout.SOUTH, btnNexts, 0, SpringLayout.SOUTH, lblDetectionPhaseIs);
+		springLayout.putConstraint(SpringLayout.EAST, btnNexts, -39, SpringLayout.EAST, contentPane);
+		contentPane.add(btnNexts);
+		btnNexts.setVisible(false);
+		
+		textArea = new JTextArea();
+		scrollPane.setViewportView(textArea);
+		baos = caos;
+		textArea.setEditable(false);
+		
+		progressBar = new JProgressBar(0, 5);
+		springLayout.putConstraint(SpringLayout.NORTH, progressBar, 10, SpringLayout.SOUTH, scrollPane);
+		springLayout.putConstraint(SpringLayout.WEST, progressBar, 0, SpringLayout.WEST, scrollPane);
+		springLayout.putConstraint(SpringLayout.SOUTH, progressBar, -10, SpringLayout.SOUTH, contentPane);
+		springLayout.putConstraint(SpringLayout.EAST, progressBar, 0, SpringLayout.EAST, scrollPane);
+		progressBar.setStringPainted(true);
+		contentPane.add(progressBar);
+		
+		addListeners(d);
+	}
+
+	/**
+	 * Defines the function of the button that leaves the Frame.
+	 */
+	public void modifyButton() {
 		if(isDetectionSuceeded()){
-			JButton btnNext = new JButton("Nonconformances");
-			btnNext.setBounds(426, 12, 185, 25);
-			btnNext.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
+			btnNexts.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent arg0) {
 					callsCategorization();
 				}
 			});
-			contentPane.add(btnNext);
 		}else{
-			JButton btnNext = new JButton("Exit");
-			btnNext.setBounds(426, 12, 185, 25);
-			btnNext.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					exit();
+			btnNexts.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent arg0) {
+						exit();
 				}
 			});
-			contentPane.add(btnNext);
+			btnNexts.setText("Exit");
 		}
-		
-		JScrollPane scrollPane = new JScrollPane();
-		scrollPane.setBounds(12, 51, 614, 388);
-		contentPane.add(scrollPane);
-		
-		JTextArea textArea = new JTextArea();
-		scrollPane.setViewportView(textArea);
-		textArea.setText(baos.toString());
-		textArea.setEditable(false);
-		
-		actualFrame.addWindowStateListener(new WindowAdapter() {
-			
-			@Override
-			public void windowStateChanged(WindowEvent e){
-				if(e.getNewState() == JFrame.MAXIMIZED_BOTH){
-					actualFrame.setExtendedState(JFrame.NORMAL);
-				}
-			}
-		});
-
+		btnNexts.setVisible(true);
 	}
 
+	/**
+	 * Add listeners to Frame, to keep record of stages in Detect execution.
+	 * @param d Detect object that will be listen by Frame.
+	 */
+	private void addListeners(Detect d) {
+		d.addDetectListener(new DetectListener() {
+			
+			@Override
+			public void detectGeneratedTestsWithRandoop(DetectEvent e) {
+				textArea.setText(baos.toString());
+				progressBar.setValue(4);
+				lblDetectionPhaseIs.setText("Current Stage: " + "Executing Tests");
+			}
+			
+			@Override
+			public void detectExecutedTests(DetectEvent e) {
+				textArea.setText(baos.toString());
+				progressBar.setValue(5);
+				lblDetectionPhaseIs.setText("Detection Phase finished.");
+				modifyButton();
+			}
+			
+			@Override
+			public void detectCreatedDirectories(DetectEvent e) {
+				textArea.setText(baos.toString());
+				progressBar.setValue(1);
+				lblDetectionPhaseIs.setText("Current Stage: " + "Compiling with Java");
+			}
+			
+			@Override
+			public void detectCompiledProjectWithJava(DetectEvent e) {
+				textArea.setText(baos.toString());
+				progressBar.setValue(2);
+				lblDetectionPhaseIs.setText("Current Stage: " + "Compiling with JML");
+			}
+			
+			@Override
+			public void detectCompiledProjectWithJML(DetectEvent e) {
+				textArea.setText(baos.toString());
+				progressBar.setValue(3);
+				lblDetectionPhaseIs.setText("Current Stage: " + "Generating Tests");
+			}
+
+			@Override
+			public void detectErrorOnGeneratingTests(DetectEvent e) {
+				textArea.setText(baos.toString());
+				setDetectionSuceeded(false);
+				modifyButton();
+			}
+		});
+	}
+
+	/**
+	 * Close the Window.
+	 */
 	protected void exit() {
 		setVisible(false);
 	}
@@ -100,10 +198,18 @@ public class DetectionScreenAdvisorFrame extends JFrame {
 		setVisible(false);
 	}
 
+	/**
+	 * Verify if detection phase was succeeded.
+	 * @return if detection phase was succeeded.
+	 */
 	public boolean isDetectionSuceeded() {
 		return detectionSuceeded;
 	}
 
+	/**
+	 * Set information if detection phase was succeeded.
+	 * @param detectionSuceeded if detection phase was succeded.
+	 */
 	public void setDetectionSuceeded(boolean detectionSuceeded) {
 		this.detectionSuceeded = detectionSuceeded;
 	}

@@ -388,6 +388,7 @@ public class Examinator {
 	 */
 	private boolean isSomeVarOtAtrGettingAttribution(com.sun.tools.javac.util.List<JCVariableDecl> params, JCBlock block) {
 		for (com.sun.tools.javac.util.List<JCStatement> traversing = block.stats; !traversing.isEmpty(); traversing = traversing.tail){
+			
 			if(traversing.head instanceof JCExpressionStatement){
 				if(verifyAttribution(params, ((JCExpressionStatement) traversing.head).expr))
 					return true;
@@ -466,6 +467,25 @@ public class Examinator {
 				methods.add((JmlMethodDecl) traverser.head);
 			}
 		return methods;
+	}
+	
+	/**
+	 * Take an class declaration and return a list with all Methods from there.
+	 * @param clazz Class declaration examined.
+	 * @return list with all methods from class examined.
+	 */
+	private List<String> takeMethodsList(JmlTree.JmlClassDecl clazz){
+		List<String> methods = new ArrayList<>();
+		com.sun.tools.javac.util.List<JCTree> traverser;
+		try {
+			for (traverser = clazz.defs; !traverser.isEmpty(); traverser = traverser.tail) {
+				if(traverser.head.getKind().equals(Tree.Kind.METHOD))
+					methods.add(((JmlMethodDecl) traverser.head).name.toString());
+			}			
+		} catch (Exception e) {
+		}
+		return methods;
+		
 	}
 	
 	/**
@@ -671,5 +691,68 @@ public class Examinator {
 			}
 		return false;
 	}
+	
+	/**
+	 * Generate an List with all possible pair within the classname given and its methods.
+	 * @param classname Class path name of class to be examined.
+	 * @return list with all possible pair within the classname given and its methods.
+	 */
+	private List<String> generateListAllClassMethodPair(String classname){
+		List<String> methods = takeMethodsList(takeClassFromFile(getFileToInvestigate(classname, false), classname));
+		List<String> classMethodPair = new ArrayList<String>();
+		for (int index = 0; index < methods.size(); index++) {
+			classMethodPair.add(classname + "." + methods.get(index));
+		}
+		return classMethodPair;
+	}
+	
+	/**
+	 * Generate all possible methods full path name from the classes listed
+	 * within classesFilenName. 
+	 * @param classesFileName Name of the file containing listing of classes.
+	 * @return 
+	 */
+	public List<String> generatePossibleMethodsList(String classesFileName){
+		List<String> methods = new ArrayList<String>();
+		List<String> classes = generateClassList(classesFileName);
+		for (int indexA = 0; indexA < classes.size(); indexA++) {
+			List<String> aux = generateListAllClassMethodPair(classes.get(indexA));
+			for (int indexB = 0; indexB < aux.size(); indexB++) {
+				methods.add(aux.get(indexB));
+			}
+		}
+		return methods;
+	}
 
+	/**
+	 * Takes an path name for a File listing classes and then return its
+	 * classes listed in a ArrayList.
+	 * @param classesFileName File to be listed.
+	 * @return list with all classes named in File.
+	 */
+	private List<String> generateClassList(String classesFileName){
+		List<String> classList = new ArrayList<String>();
+		String classNames = FileUtil.readFile(classesFileName);
+		int index = 0;
+		while(index < classNames.length()){
+			int endInput = classNames.indexOf("\n" ,index);
+			classList.add(classNames.substring(index, endInput));
+			index = endInput + 1;
+		}
+		return classList;
+	}
+	
+	/**
+	 * Return code of method desired.
+	 * @param file file of where method is located.
+	 * @param classname class of where method is located.
+	 * @param methodname name of method desired.
+	 * @return code of method desired.
+	 */
+	public String showsMethodCode(java.io.File file, String classname, String methodname){
+		JmlClassDecl ourClass = takeClassFromFile(file, classname);
+		JmlMethodDecl anMethod = takeMethodsFromClass(ourClass, methodname).get(0);
+		return anMethod.toString();
+	}
+	
 }

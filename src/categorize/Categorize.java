@@ -1,8 +1,10 @@
 package categorize;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
+import utils.Constants;
 import detect.TestError;
 
 /**
@@ -12,6 +14,7 @@ import detect.TestError;
 public class Categorize {
 
 	private Examinator examine; 
+	private List<String> methodsList;
 	
 	/**
 	 * Method that receives the set of nonconformances, and the source folder and returns a set of 
@@ -24,6 +27,7 @@ public class Categorize {
 	public Set<Nonconformance> categorize(Set<TestError> errors, String sourceFolder){
 		Set<Nonconformance> nonconformances = new HashSet<Nonconformance>();
 		this.examine = new Examinator(sourceFolder);
+		this.methodsList = this.examine.generatePossibleMethodsList(Constants.CLASSES);
 		for(TestError te : errors){
 			Nonconformance n = new Nonconformance();
 			switch (te.getType()) {
@@ -37,7 +41,8 @@ public class Categorize {
 				n.setMethodCalling(te.getLineOfErrorInJava(), sourceFolder);
 				n.setCause(categorizePrecondition(te, sourceFolder, n.getMethodCalling()));
 				n.setTestFile(te.getTestFile());
-				n.setLinesFromTestFile(te.getNumberRevealsNC());
+				n.setSampleLineOfError(te.getNumberRevealsNC());
+				n.setStackTraceOrder(this.methodsList);
 				nonconformances.add(n);
 				break;
 				
@@ -51,7 +56,8 @@ public class Categorize {
 				n.setMethodCalling(te.getLineOfErrorInJava(), sourceFolder);
 				n.setCause(categorizePostcondition(te, sourceFolder, n.getMethodCalling()));
 				n.setTestFile(te.getTestFile());
-				n.setLinesFromTestFile(te.getNumberRevealsNC());
+				n.setSampleLineOfError(te.getNumberRevealsNC());
+				n.setStackTraceOrder(this.methodsList);
 				nonconformances.add(n);
 				break;
 
@@ -65,7 +71,8 @@ public class Categorize {
 				n.setMethodCalling(te.getLineOfErrorInJava(), sourceFolder);
 				n.setCause(categorizeInvariant(te, sourceFolder, n.getMethodCalling()));
 				n.setTestFile(te.getTestFile());
-				n.setLinesFromTestFile(te.getNumberRevealsNC());
+				n.setSampleLineOfError(te.getNumberRevealsNC());
+				n.setStackTraceOrder(this.methodsList);
 				nonconformances.add(n);
 				break;
 				
@@ -79,7 +86,8 @@ public class Categorize {
 				n.setMethodCalling(te.getLineOfErrorInJava(), sourceFolder);
 				n.setCause(categorizeConstraint(te, sourceFolder, n.getMethodCalling()));
 				n.setTestFile(te.getTestFile());
-				n.setLinesFromTestFile(te.getNumberRevealsNC());
+				n.setSampleLineOfError(te.getNumberRevealsNC());
+				n.setStackTraceOrder(this.methodsList);
 				nonconformances.add(n);
 				break;
 				
@@ -93,7 +101,8 @@ public class Categorize {
 				n.setMethodCalling(te.getLineOfErrorInJava(), sourceFolder);
 				n.setCause(categorizeEvaluation(te, sourceFolder, n.getMethodCalling()));				
 				n.setTestFile(te.getTestFile());
-				n.setLinesFromTestFile(te.getNumberRevealsNC());
+				n.setSampleLineOfError(te.getNumberRevealsNC());
+				n.setStackTraceOrder(this.methodsList);
 				nonconformances.add(n);
 				break;
 				

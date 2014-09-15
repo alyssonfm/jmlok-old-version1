@@ -1,6 +1,10 @@
 package categorize;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
 
 import utils.Constants;
 import utils.FileUtil;
@@ -19,15 +23,18 @@ public class Nonconformance {
 	private String className = "";
 	private String methodName = "";
 	private String packageName = "";
-	private String linesFromTestFile = "";
+	private String sampleLineOfError = "";
 	private String methodCalling = "";
 	private String message = "";
+	private List<String> stackTraceOrder;
+	private int countOcurrencesLineOfError;
 	
 	/**
 	 * Constructor of the class. Since it will be used widely with the sets, we decided to leave
 	 * the constructor empty and the sets will do the main work to initialize the fields. 
 	 */
 	public Nonconformance() {
+		this.stackTraceOrder = new ArrayList<String>();
 	}
 	
 	/**
@@ -143,23 +150,42 @@ public class Nonconformance {
 	}
 	
 	/**
-	 * Get some lines from the test file which generate the nonconformance.
-	 * @return some lines from the test file which generate the nonconformance.
+	 * Get copy of line from the test file which generate the nonconformance.
+	 * @return copy of line from the test file which generate the nonconformance.
 	 */
-	public String getLinesFromTestFile() {
-		return linesFromTestFile;
+	public String getSampleLineOfError() {
+		return sampleLineOfError;
 	}
 	
 	/**
-	 * Set some lines from the test file which generate the nonconformance.
-	 * @param specifiedLine The exact line where error was thrown.
+	 * Set copy of line from the test file which generate the nonconformance.
+	 * @param specifiedLine copy of line line where error was thrown.
 	 */
-	public void setLinesFromTestFile(int specifiedLine) {
+	public void setSampleLineOfError(int specifiedLine) {
+		int[] arr = new int[1];
+		arr[0] = 0;
 		try {
-			this.linesFromTestFile = FileUtil.testCaseContent(this.testFile, specifiedLine);
+			this.sampleLineOfError = FileUtil.lineSampleWhoOriginatedError(this.testFile, specifiedLine, this.test, arr);
+			this.setCountOcurrencesLineOfError(arr[0]);
 		} catch (IOException e) {
-			this.linesFromTestFile = "Error when reading the test files.";
+			this.sampleLineOfError = "";
 		}
+	}
+	
+	/**
+	 * Get number of ocurrences of instruction that generated Error, before it crashes.
+	 * @return number of ocurrences of instruction that generated Error, before it crashes.
+	 */
+	public int getCountOcurrencesLineOfError() {
+		return countOcurrencesLineOfError;
+	}
+
+	/**
+	 * Set number of ocurrences of instruction that generated Error, before it crashes.
+	 * @param countOcurrencesLineOfError number of ocurrences of instruction that generated Error, before it crashes.
+	 */
+	public void setCountOcurrencesLineOfError(int countOcurrencesLineOfError) {
+		this.countOcurrencesLineOfError = countOcurrencesLineOfError;
 	}
 	
 	/**
@@ -212,6 +238,64 @@ public class Nonconformance {
 			this.methodCalling = this.methodCalling.replaceFirst(this.className, "<init>");
 		}
 	}
+
+	/**
+	 * Get a sequence of calling methods whom shows error of nonconformance.
+	 * @return a sequence of calling methods whom shows error of nonconformance.
+	 */
+	public List<String> getStackTraceOrder(){
+		return this.stackTraceOrder;
+	}
+
+	/**
+	 * Set in a list, sequence of calling methods whom shows error of nonconformance.
+	 * @param methodsList The possible methods to be called.
+	 */
+	public void setStackTraceOrder(List<String> methodsList) {
+		StringReader sr = new StringReader(this.message);
+		BufferedReader buf = new BufferedReader(sr);
+		try {
+			String firstState = this.packageName + "." + this.className + "." + this.methodName;
+			String lastState  = this.testFile.substring(0, this.testFile.indexOf(".java")) + "." + this.test;
+			String initString = "&lt;init&gt";
+			
+			this.stackTraceOrder.add(firstState);
+			
+			buf.readLine();
+			while(buf.ready()){
+				String info = buf.readLine();
+
+				int begin = info.indexOf("at ");
+				int last  = info.indexOf("(", begin);
+				String trace;
+				try {
+					trace = info.substring(begin + 3, last);					
+				} catch (IndexOutOfBoundsException e) {
+					// There are some lines on message board, that will not contain
+					// at Class.method () structure, so we ignore it.
+					continue;
+				}
+				if(trace.equals(lastState)){
+					this.stackTraceOrder.add(lastState);
+					return;
+				}else if(trace.matches(initString)){
+					int left  = trace.indexOf(".") + 1;
+					int right = trace.indexOf(".", left);
+					this.stackTraceOrder.add(trace.replaceAll(initString, trace.substring(left, right)));
+				}else{
+					for (int i = 0; i < methodsList.size(); i++) {
+						if(trace.equals(methodsList.get(i))){
+							this.stackTraceOrder.add(trace);
+							break;
+						}
+					}
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+	}
 	
 	@Override
 	public boolean equals(Object obj) {
@@ -248,4 +332,5 @@ public class Nonconformance {
 		result = prime * result + ((type == null) ? 0 : type.hashCode());
 		return result;
 	}
+
 }

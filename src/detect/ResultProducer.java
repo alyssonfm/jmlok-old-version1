@@ -8,6 +8,7 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -175,6 +176,7 @@ public class ResultProducer {
 		nonconformance.setAttribute("method", n.getMethodName());
 		nonconformance.setAttribute("type", n.getType());
 		nonconformance.setAttribute("likelyCause", n.getCause());
+		nonconformance.setAttribute("stackTrace", getStackTraceString(n.getStackTraceOrder()));
 		
 		Element error = doc.createElement("Error");
 		error.setAttribute("testName", n.getTest());
@@ -183,6 +185,21 @@ public class ResultProducer {
 		
 		nonconformance.appendChild(error);
 		return nonconformance;
+	}
+	
+	
+	/**
+	 * Get list containing names for class, in a calling order of the Exception launch.
+	 * @param list The list containing names for class, in a calling order of the Exception launch.
+	 * @return the text informing a resume from stack trace list showed by Java Exception.
+	 */
+	private static String getStackTraceString(List<String> list) {
+		String toShow = "";
+		toShow += "Error appeared in " + list.get(0) + "\n";
+		for (int i = 1; i < list.size(); i++) {
+			toShow += "----> at " + list.get(i) + "\n";
+		}
+		return toShow;
 	}
 	
 	/**

@@ -1,5 +1,8 @@
 package utils;
 
+import gui.CategorizationScreenAdvisorFrame;
+
+import java.awt.Font;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -7,8 +10,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 
+import javax.swing.ImageIcon;
+import javax.swing.UIManager;
+import javax.swing.plaf.FontUIResource;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -18,6 +25,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import org.apache.commons.lang.StringUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -32,16 +40,22 @@ public class FileUtil {
 
 	public static String JAR_FILES = ".jar";
 	public static String DIRECTORIES = "files";
-	
+
 	/**
-	 * Returns a list of path names from files in a same paste, separated by a ';'.
-	 * @param libFolder Folder to list its files.
-	 * @param formatSearched format to be searched.
-	 * @return String containing list of path names from files in a same paste, separated by a ';',
-	 * for Windows and separated by a ':' for others.
+	 * Returns a list of path names from files in a same paste, separated by a
+	 * ';'.
+	 * 
+	 * @param libFolder
+	 *            Folder to list its files.
+	 * @param formatSearched
+	 *            format to be searched.
+	 * @return String containing list of path names from files in a same paste,
+	 *         separated by a ';', for Windows and separated by a ':' for
+	 *         others.
 	 */
-	public static String getListPathPrinted(String libFolder, String formatSearched) {
-		if(libFolder.equals(""))
+	public static String getListPathPrinted(String libFolder,
+			String formatSearched) {
+		if (libFolder.equals(""))
 			return libFolder;
 		File dir = new File(libFolder);
 		if (!dir.exists()) {
@@ -50,15 +64,16 @@ public class FileUtil {
 		}
 		File[] arquivos = dir.listFiles();
 		// Separator must be correctly settled to classLoader work
-		String separator = (System.getProperty("os.name").contains("Windows"))?";":":";
+		String separator = (System.getProperty("os.name").contains("Windows")) ? ";"
+				: ":";
 		String toReturn = "";
-		if(formatSearched.equals(FileUtil.DIRECTORIES)){
+		if (formatSearched.equals(FileUtil.DIRECTORIES)) {
 			for (File file : arquivos) {
 				toReturn += file.toString() + separator;
 			}
-		}else{
+		} else {
 			for (File file : arquivos) {
-				if(file.toString().contains(formatSearched)){
+				if (file.toString().contains(formatSearched)) {
 					toReturn += file.toString() + separator;
 				}
 			}
@@ -172,14 +187,14 @@ public class FileUtil {
 		}
 		return result;
 	}
-	
+
 	/**
 	 * Method to read a single line of a file received as parameter.
 	 * 
 	 * @param name
 	 *            - the name of the file to be read.
 	 * @param line
-	 *  		  - the line to be read.
+	 *            - the line to be read.
 	 * @return - the content of the file.
 	 */
 	public static String readSingleLineOfFile(String name, int line) {
@@ -189,8 +204,10 @@ public class FileUtil {
 			FileReader fr = new FileReader(new File(name));
 			BufferedReader buf = new BufferedReader(fr);
 			while (buf.ready()) {
-				if(lines == line){
-					while((result.trim().startsWith("*") || result.trim().startsWith("/") || result.trim().startsWith("@")) && buf.ready())
+				if (lines == line) {
+					while ((result.trim().startsWith("*")
+							|| result.trim().startsWith("/") || result.trim()
+							.startsWith("@")) && buf.ready())
 						result = buf.readLine();
 					break;
 				}
@@ -199,35 +216,48 @@ public class FileUtil {
 			}
 			buf.close();
 		} catch (Exception e) {
-			System.err.println("Error in method FileUtil.readSingleLineOfFile()");
+			System.err
+					.println("Error in method FileUtil.readSingleLineOfFile()");
 		}
 		return result;
 	}
-	
+
 	/**
-	 * Returns some lines for more detailed info about the test cases whom discovered specified error.
-	 * @param testFile The test file where the error was called.
-	 * @param wishedLine The line of the file where the error was founded. 
-	 * @return String containing 6 lines from the file for info.
-	 * @throws IOException When failing to read the file.
+	 * Returns copy of line in method to highlight in test cases whom discovered
+	 * specified error.
+	 * 
+	 * @param testFile
+	 *            The test file where the error was called.
+	 * @param wishedLine
+	 *            The line of the file where the error was founded.
+	 * @param arr Array containing the number of occurrences of the of line that originated error, before it.
+	 * @return copy of line that originated error.
+	 * @throws IOException
+	 *             When failing to read the file.
 	 */
-	public static String testCaseContent(String testFile, int wishedLine) throws IOException {
-		BufferedReader f = new BufferedReader(new FileReader(Constants.TEST_DIR + Constants.FILE_SEPARATOR + testFile));
-		String line, toReturn = "";
-		int counterLines = 0, determinedLine = -1;
+	public static String lineSampleWhoOriginatedError(String testFile,
+			int wishedLine, String test, int[] arr) throws IOException {
+		BufferedReader f = new BufferedReader(new FileReader(Constants.TEST_DIR
+				+ Constants.FILE_SEPARATOR + testFile));
+		String line;
+		String testExtract = "";
+		boolean foundTest = false;
+		
+		int counterLines = 0;
 		while ((line = f.readLine()) != null) {
 			counterLines++;
-			if(counterLines == wishedLine - 2)
-				determinedLine = counterLines + 4;
-			if(counterLines >= wishedLine - 2 && counterLines < determinedLine)
-				toReturn += line + "\n";
-			if(counterLines == determinedLine){
+			if(line.contains("public void " + test + "()")){
+				foundTest = true;
+			}else if (counterLines == wishedLine) {
 				f.close();
-				return toReturn + line;
+				arr[0] = StringUtils.countMatches(testExtract, line);
+				return line;
+			}else if(foundTest){
+				testExtract += line;
 			}
 		}
 		f.close();
-		return toReturn;
+		return "";
 	}
 
 
@@ -293,7 +323,8 @@ public class FileUtil {
 				variables.add(aux);
 			}
 		} catch (ClassNotFoundException e) {
-			System.err.println("Error in method FileUtil.getVariablesFromClass()");
+			System.err
+					.println("Error in method FileUtil.getVariablesFromClass()");
 		}
 		return variables;
 	}
@@ -326,7 +357,7 @@ public class FileUtil {
 	 * @param path
 	 *            The complete class name from the class searched.
 	 * @param srcDir
-	 * 			  The source directory where the project examined are located.
+	 *            The source directory where the project examined are located.
 	 * @return String representing the complete class name from the Super Class
 	 *         extended.
 	 */
@@ -344,34 +375,79 @@ public class FileUtil {
 		}
 		return superClassPackagePath;
 	}
-	
+
 	/**
 	 * Method that returns if a directory has sub directories.
-	 * @param sourcePath the path for the directory source.
-	 * @return a boolean to indicates if the directory has or not sub directories.
+	 * 
+	 * @param sourcePath
+	 *            the path for the directory source.
+	 * @return a boolean to indicates if the directory has or not sub
+	 *         directories.
 	 */
-	public static boolean hasDirectories(String sourcePath){
+	public static boolean hasDirectories(String sourcePath) {
 		File dir = new File(sourcePath);
 		File[] files = dir.listFiles();
 		for (File file : files) {
-			if(file.isDirectory()) return true;
+			if (file.isDirectory())
+				return true;
 		}
 		return false;
 	}
-	
+
 	/**
 	 * Return the ideal command to execute Randoop and generate tests.
-	 * @param timeout The time used to generate Tests.
-	 * @param pathToRandoop The path where randoop.jar will be located.
+	 * 
+	 * @param timeout
+	 *            The time used to generate Tests.
+	 * @param pathToRandoop
+	 *            The path where randoop.jar will be located.
 	 * @return The String to be executed in Runtime execution.
 	 */
-	public static String getCommandToUseRandoop(String timeout, String pathToRandoop, String liblist){
-		String bruteCommand = "java -cp \"" + pathToRandoop + ";" + Constants.SOURCE_BIN + ((liblist.equals("")) ? ("") : (";" + liblist)) + "\" randoop.main.Main gentests --classlist=" + 
-				Constants.CLASSES +	" --timelimit=" + timeout + " --junit-output-dir=" + Constants.TEST_DIR;
-		if(System.getProperty("os.name").contains("Windows"))
+	public static String getCommandToUseRandoop(String timeout,
+			String pathToRandoop, String liblist) {
+		String bruteCommand = "java -cp \"" + pathToRandoop + ";"
+				+ Constants.SOURCE_BIN
+				+ ((liblist.equals("")) ? ("") : (";" + liblist))
+				+ "\" randoop.main.Main gentests --classlist="
+				+ Constants.CLASSES + " --timelimit=" + timeout
+				+ " --junit-output-dir=" + Constants.TEST_DIR;
+		if (System.getProperty("os.name").contains("Windows"))
 			return bruteCommand;
 		else
-			return bruteCommand.replaceAll(";", ":");	
+			return bruteCommand.replaceAll(";", ":");
 	}
-	
+
+	/**
+	 * Forces a default Font for all components of actual JFrame.
+	 * 
+	 * @param a
+	 *            Font for all components of actual JFrame.
+	 */
+	public static void setUIFont(javax.swing.plaf.FontUIResource f) {
+		Enumeration<Object> keys = UIManager.getDefaults().keys();
+		while (keys.hasMoreElements()) {
+			Object key = keys.nextElement();
+			Object value = UIManager.get(key);
+			if (value instanceof FontUIResource) {
+				FontUIResource orig = (FontUIResource) value;
+				Font font = new Font(f.getFontName(), orig.getStyle(),
+						f.getSize());
+				UIManager.put(key, new FontUIResource(font));
+			}
+		}
+	}
+
+	/** 
+	 * Returns an ImageIcon, or null if the path was invalid. 
+	 */
+	public static ImageIcon createImageIcon(String path) {
+		java.net.URL imgURL = CategorizationScreenAdvisorFrame.class
+				.getResource(path);
+		if (imgURL != null) {
+			return new ImageIcon(imgURL);
+		} else {
+			System.err.println("Couldn't find file: " + path);
+			return null;
+		}
+	}
 }

@@ -9,6 +9,7 @@ import java.io.PrintStream;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -36,6 +37,15 @@ public class Detect {
 	private File jmlBin = new File(Constants.JML_BIN);
 	private File testSource = new File(Constants.TEST_DIR);
 	private File testBin = new File(Constants.TEST_BIN);
+	private long startTime;
+	private List<DetectListener> detectListeners;
+	private String sourceFolder;
+	private String librariesFolder;
+	private String timeout;
+	
+	private enum StagesDetect{
+		CREATED_DIRECTORIES, COMPILED_JAVA, COMPILED_JML, GENERATED_TESTS, EXECUTED_TESTS, ERROR_ON_DETECTION
+	}
 	
 	/**
 	 * The constructor of this class, creates a new instance of Detect class, creates the jmlok directory and set the JML compiler used.
@@ -58,6 +68,7 @@ public class Detect {
 			break;
 		}
 		isWindows = System.getProperty("os.name").contains("Windows");
+		detectListeners = new ArrayList<DetectListener>();
 	}
 	
 	/**
@@ -76,40 +87,85 @@ public class Detect {
 			else return r.listErrors(Constants.OPENJML_COMPILER);
 		} catch (Exception e) {
 			System.out.println(e.getMessage());
+			triggersEvent(StagesDetect.ERROR_ON_DETECTION);
+			// This line below commented serves to inform all errors just on Detection console.
+			// e.printStackTrace(); 
 			return null;
 		}
 	}
 	
 	/**
 	 * Method that executes the scripts to conformance checking.
-	 * @param sourceFolder = the path to source of files to be tested.
+	 * @param srcFolder = the path to source of files to be tested.
 	 * @param libFolder = the path to external libraries needed for the current SUT.
-	 * @param timeout = the time to tests generation.
+	 * @param time = the time to tests generation.
 	 * @throws Exception When some XML cannot be read.
 	 */
-	public void execute(String sourceFolder, String libFolder, String timeout) throws Exception {
+	public void execute(String srcFolder, String libFolder, String time) throws Exception {
 		try {
+			sourceFolder = srcFolder;
+			librariesFolder = libFolder;
+
 			getClassListFile(sourceFolder);
+			initTimer();
 			
-			System.out.println("Creating directories...");
-			
-			createDirectories();
-			cleanDirectories();
-			System.out.println("Compiling the project...");
-			javaCompile(sourceFolder, libFolder);
-			System.out.println("Compiling with JML compiler...");
-			jmlCompile(sourceFolder);
+			timeout = time;
+			runStage("Creating directories", "Directories created in", StagesDetect.CREATED_DIRECTORIES);
+			runStage("Compiling the project", "Project compiled in", StagesDetect.COMPILED_JAVA);
+			runStage("Compiling with JML compiler", "Project compiled with JML in", StagesDetect.COMPILED_JML);
+
 			if(!FileUtil.getListPathPrinted(Constants.JML_BIN, FileUtil.DIRECTORIES).equals("")){
-				System.out.println("Generating tests...");
-				generateTests(libFolder, timeout);
-				System.out.println("Running JUnit to test the JML code...");
-				runTests(libFolder);
+				runStage("Generating tests", "Tests generated in", StagesDetect.GENERATED_TESTS);
+				runStage("Running JUnit to test the JML code", "Tests ran in", StagesDetect.EXECUTED_TESTS);
 			}else{
 				throw new Exception("JML couldn't compile the files.");
 			}
 		} catch (Exception e) {
 			throw new Exception(e.getMessage());
 		}
+	}
+
+	/**
+	 * Initiates timer, to count seconds of each stages of Detect.
+	 */
+	private void initTimer() {
+		setStartTime(0);
+		countTime();
+	}
+
+	/**
+	 * Run a stage from Detection phase.
+	 * @param iniMsg message introducing the stage.
+	 * @param finMsg message advising end of the stage.
+	 * @param stagesDetect which stage will be executed.
+	 * @throws Exception When some stage shows some error.
+	 */
+	private void runStage(String iniMsg, String finMsg, StagesDetect stagesDetect) throws Exception {
+		System.out.print(iniMsg + "...");
+		switch (stagesDetect) {
+		case CREATED_DIRECTORIES:
+			createDirectories();
+			cleanDirectories();			
+			break;
+		case COMPILED_JAVA:
+			javaCompile(sourceFolder, librariesFolder);
+			break;
+		case COMPILED_JML:
+			jmlCompile(sourceFolder);
+			break;
+		case GENERATED_TESTS:
+			generateTests(librariesFolder, timeout);
+			break;
+		case EXECUTED_TESTS:
+			runTests(librariesFolder);
+			break;
+		case ERROR_ON_DETECTION:
+			break;
+		default:
+			break;
+		}
+		System.out.println(finMsg + " " + ((double) countTime() * 0.001) + " seconds");
+		triggersEvent(stagesDetect);
 	}
 
 	/**
@@ -429,4 +485,76 @@ public class Detect {
 		}
 		return path.getParent().toString();
 	}
+	
+	/**
+	 * Get time of running some stage.
+	 * @return time of running some stage.
+	 */
+	public long getStartTime() {
+		return startTime;
+	}
+
+	/**
+	 * Set time of running some stage.
+	 * @param startTime time of running some stage.
+	 */
+	public void setStartTime(long startTime) {
+		this.startTime = startTime;
+	}
+	
+	/**
+	 * Count time between stages, take value of stage duration, reset timer, and inform value.
+	 * @return value of timer.
+	 */
+	private long countTime(){
+		if(getStartTime() == 0){
+			setStartTime(System.currentTimeMillis());
+			return getStartTime();
+		}else{
+			long s = getStartTime();
+			setStartTime(System.currentTimeMillis());
+			return getStartTime() - s;
+		}
+	}
+	
+	/**
+	 * Trigger event to be detected by all listeners of Detect.
+	 * @param stage stage of execution of Detection phase.
+	 */
+	private void triggersEvent(StagesDetect stage){
+		DetectEvent e = new DetectEvent(this);
+		for (DetectListener l : detectListeners) {
+			switch (stage) {
+			case CREATED_DIRECTORIES:
+				l.detectCreatedDirectories(e);
+				break;
+			case COMPILED_JAVA:
+				l.detectCompiledProjectWithJava(e);
+				break;
+			case COMPILED_JML:
+				l.detectCompiledProjectWithJML(e);
+				break;
+			case GENERATED_TESTS:
+				l.detectGeneratedTestsWithRandoop(e);
+				break;
+			case EXECUTED_TESTS:
+				l.detectExecutedTests(e);
+				break;
+			case ERROR_ON_DETECTION:
+				l.detectErrorOnGeneratingTests(e);
+				break;
+			}
+		}
+	}
+	
+	public synchronized void addDetectListener(DetectListener l) {  
+        if(!detectListeners.contains(l)) {  
+            detectListeners.add(l);  
+        }  
+    }  
+  
+    public synchronized void removeDetectListener(DetectListener l) {  
+        detectListeners.remove(l);  
+    }
+	
 }

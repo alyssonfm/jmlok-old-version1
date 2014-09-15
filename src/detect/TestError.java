@@ -32,14 +32,14 @@ public class TestError {
 	public TestError(String name, String testFile, String message, String type, String details) {
 		this.setTypeJmlc(type);
 		if(!this.isMeaningless()){
-			this.setMessage(message);
-			this.setClassName(); 
+			this.setMessage(details);
+			this.setClassName(message); 
 			this.setTestFile(testFile);
-			this.setMethodName(details);
+			this.setMethodName(details, message);
 			this.setName(name);
 			this.setPackage(details);
 			this.setNumberRevealsNC(details);
-			this.setLineOfErrorInJava();
+			this.setLineOfErrorInJava(message);
 			this.setPackageAndClassCalling(details);
 		}
 	}
@@ -52,9 +52,9 @@ public class TestError {
 	 */
 	public TestError(String message, String type, String details){
 		this.setTypeOpenjml(type);
-		this.setMessage(message);
-		this.setClassName();
-		this.setMethodName(details);
+		this.setMessage(details);
+		this.setClassName(message);
+		this.setMethodName(details, message);
 	}
 	
 	/**
@@ -164,9 +164,9 @@ public class TestError {
 	/**
 	 * Method that sets the class name for the current test error.
 	 */
-	public void setClassName(){
+	public void setClassName(String message){
 		String result = "";
-		String aux = this.message;
+		String aux = message;
 		String[] text = aux.split(" ");
 		if (isJmlRac()) {
 			if(!this.type.equals(CategoryName.EVALUATION)){
@@ -189,10 +189,10 @@ public class TestError {
 	 * Method that sets the method name for the current test error.
 	 * @param details The details from the error log.
 	 */
-	public void setMethodName(String details){
+	public void setMethodName(String details, String message){
 		String result = "";
 		if(isJmlRac()){
-			String aux = this.message;
+			String aux = message;
 			String[] text = aux.split(" ");
 			if (this.type.equals(CategoryName.PRECONDITION) || this.type.equals(CategoryName.POSTCONDITION)) {
 				result = text[2].substring(text[2].indexOf(".")+1, text[2].length());
@@ -331,14 +331,14 @@ public class TestError {
 	/**
 	 * Set the line where error was thrown in the java file.
 	 */
-	public void setLineOfErrorInJava() {
-		int firstIndex = this.message.indexOf("line ");
+	public void setLineOfErrorInJava(String message) {
+		int firstIndex = message.indexOf("line ");
 		if(firstIndex == -1)
 			this.lineOfErrorInJava = firstIndex;
 		else{
-			int temp = this.message.indexOf(',', firstIndex + 5);
+			int temp = message.indexOf(',', firstIndex + 5);
 			int lastIndex = (temp == -1)? 0 : temp;
-			this.lineOfErrorInJava = (lastIndex == 0)? 0 : Integer.parseInt(this.message.substring(firstIndex + 5, lastIndex));
+			this.lineOfErrorInJava = (lastIndex == 0)? 0 : Integer.parseInt(message.substring(firstIndex + 5, lastIndex));
 		}
 	}
 	

@@ -46,25 +46,6 @@ public class Controller {
 	}
 
 	/**
-	 * Prepare tools and info to shown on Detection Screen.
-	 * @param compiler The compiler that will be used. 
-	 * @param lib The library folder in which the analysis depend of. 
-	 * @param time The time (in seconds) to generate tests (with Randoop).
-	 * @return an ByteArrayOuputStream with the console log of Detection execution.
-	 * @throws Exception When some XML cannot be read.
-	 */
-	private static ByteArrayOutputStream setToolsForDetectionScreen(int compiler, String lib, String time) throws Exception {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		PrintStream ps = new PrintStream(baos);
-		PrintStream old = System.out;
-		System.setOut(ps);
-		errors = fulfillDetectPhase(compiler, source, lib, time);
-		System.out.flush();
-	    System.setOut(old);
-	    return baos;
-	}
-
-	/**
 	 * Shows the Detection Screen, with console, and button showing.
 	 * @param compiler The compiler that will be used. 
 	 * @param lib The library folder in which the analysis depend of. 
@@ -72,21 +53,27 @@ public class Controller {
 	 * @throws Exception When some XML cannot be read.
 	 */
 	public static void showDetectionScreen(int compiler, String lib, String time) throws Exception {
-	    final ByteArrayOutputStream caos = setToolsForDetectionScreen(compiler, lib, time);
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		PrintStream ps = new PrintStream(baos);
+		PrintStream old = System.out;
+		System.setOut(ps);
+		
+	    final Detect d = new Detect(compiler);
 	    EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
 					DetectionScreenAdvisorFrame frame;
-					if(errors != null)
-						frame = new DetectionScreenAdvisorFrame(caos, true);
-					else
-						frame = new DetectionScreenAdvisorFrame(caos, false);
+					frame = new DetectionScreenAdvisorFrame(d, baos);
 					frame.setVisible(true);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
 			}
 		});
+	    
+	    errors = d.detect(source, lib, time);
+		// System.out.flush();
+	    System.setOut(old);
 	}
 	
 	/**
@@ -123,21 +110,6 @@ public class Controller {
 				e.printStackTrace();
 			}
 		}
-	}
-
-	/**
-	 * Call Detect for the detect phase.
-	 * @param compiler Which compiler to use on detection.
-	 * @param source The source folder to compile.
-	 * @param lib The library folder which compiler depends on.
-	 * @param time The time(in seconds) where the test will be generated.
-	 * @return an set of test errors info generated from the detection phase.
-	 * @throws Exception When some XML cannot be read.
-	 */
-	private static Set<TestError> fulfillDetectPhase(int compiler, String source, String lib, String time) throws Exception{
-		Detect d = new Detect(compiler);
-		Set<TestError> errors = d.detect(source, lib, time);
-		return errors;
 	}
 	
 	/**
