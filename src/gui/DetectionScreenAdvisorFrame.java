@@ -17,6 +17,7 @@ import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SpringLayout;
+import javax.swing.SwingWorker;
 import javax.swing.border.EmptyBorder;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
@@ -47,7 +48,10 @@ public class DetectionScreenAdvisorFrame extends JFrame {
 	private JButton btnNexts;
 	private JProgressBar progressBar;
 	private JLabel lblDetectionPhaseIs;
-
+	private SwingWorker<Object, Object> worker;
+	protected int seconds = 1000;
+	protected double velNumPerSec = 2;
+	
 	/**
 	 * Create the frame.
 	 */
@@ -99,15 +103,56 @@ public class DetectionScreenAdvisorFrame extends JFrame {
 		baos = caos;
 		textArea.setEditable(false);
 		
-		progressBar = new JProgressBar(0, 5);
+		progressBar = new JProgressBar(0, 100);
 		springLayout.putConstraint(SpringLayout.NORTH, progressBar, 10, SpringLayout.SOUTH, scrollPane);
 		springLayout.putConstraint(SpringLayout.WEST, progressBar, 0, SpringLayout.WEST, scrollPane);
 		springLayout.putConstraint(SpringLayout.SOUTH, progressBar, -10, SpringLayout.SOUTH, contentPane);
 		springLayout.putConstraint(SpringLayout.EAST, progressBar, 0, SpringLayout.EAST, scrollPane);
 		progressBar.setStringPainted(true);
 		contentPane.add(progressBar);
-		
+
 		addListeners(d);
+		startProgressWorker();
+	}
+
+	/**
+	 * Restart progress worker. Stop worker, set progressBar value to a point, and
+	 * then start progress worker to increase its value.
+	 * @param progressNumberToSet Value to set progress.
+	 */
+	private void restartProgressWorker(int progressNumberToSet){
+		stopProgress();
+		progressBar.setValue(progressNumberToSet);
+		startProgressWorker();
+	}
+
+	/**
+	 * Stop progress of progress bar, useful when Error surges.
+	 */
+	private void stopProgress() {
+		if(!worker.isDone())
+			worker.cancel(true);
+	}
+	
+	/**
+	 * Put progress worker to action. The progress bar then keep increasing until the verge of current stage.
+	 */
+	private void startProgressWorker() {
+		worker = new SwingWorker<Object, Object>() { 
+		double velocity = velNumPerSec;
+			@Override 
+			protected Void doInBackground() throws Exception { 
+				// Simulate doing something useful. 
+				for (int i = 0; i < 20; i++) { 
+					Thread.sleep((long) (seconds / velocity)); 
+					int percent = progressBar.getValue();
+					progressBar.setValue(percent + 1);
+					velocity /= 2;
+				} 
+				return null; 
+			} 
+		}; 
+		worker.execute();
 	}
 
 	/**
@@ -141,14 +186,14 @@ public class DetectionScreenAdvisorFrame extends JFrame {
 			@Override
 			public void detectGeneratedTestsWithRandoop(DetectEvent e) {
 				textArea.setText(baos.toString());
-				progressBar.setValue(4);
+				restartProgressWorker(80);
 				lblDetectionPhaseIs.setText("Current Stage: " + "Executing Tests");
 			}
 			
 			@Override
 			public void detectExecutedTests(DetectEvent e) {
 				textArea.setText(baos.toString());
-				progressBar.setValue(5);
+				progressBar.setValue(100);
 				lblDetectionPhaseIs.setText("Detection Phase finished.");
 				modifyButton();
 			}
@@ -156,27 +201,28 @@ public class DetectionScreenAdvisorFrame extends JFrame {
 			@Override
 			public void detectCreatedDirectories(DetectEvent e) {
 				textArea.setText(baos.toString());
-				progressBar.setValue(1);
+				restartProgressWorker(20);
 				lblDetectionPhaseIs.setText("Current Stage: " + "Compiling with Java");
 			}
 			
 			@Override
 			public void detectCompiledProjectWithJava(DetectEvent e) {
 				textArea.setText(baos.toString());
-				progressBar.setValue(2);
+				restartProgressWorker(40);
 				lblDetectionPhaseIs.setText("Current Stage: " + "Compiling with JML");
 			}
 			
 			@Override
 			public void detectCompiledProjectWithJML(DetectEvent e) {
 				textArea.setText(baos.toString());
-				progressBar.setValue(3);
+				restartProgressWorker(60);
 				lblDetectionPhaseIs.setText("Current Stage: " + "Generating Tests");
 			}
 
 			@Override
 			public void detectErrorOnGeneratingTests(DetectEvent e) {
 				textArea.setText(baos.toString());
+				stopProgress();
 				setDetectionSuceeded(false);
 				modifyButton();
 			}

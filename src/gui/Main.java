@@ -115,7 +115,7 @@ public class Main extends JFrame {
 		// Set window options.
 		setTitle("JMLOK 2.0");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, this.WIDTH, this.HEIGHT);
+		setBounds(100, 100, 750, 219);
 		setMinimumSize(new Dimension(this.WIDTH, this.HEIGHT));
 		setMaximumSize(new Dimension(1450, this.HEIGHT));
 		setMaximizedBounds(new Rectangle(1450, this.HEIGHT));
@@ -211,7 +211,7 @@ public class Main extends JFrame {
 		
 		btnRun = new JButton("Run");
 		springLayout.putConstraint(SpringLayout.WEST, btnRun, -274, SpringLayout.EAST, contentPane);
-		springLayout.putConstraint(SpringLayout.SOUTH, btnRun, -15, SpringLayout.SOUTH, contentPane);
+		springLayout.putConstraint(SpringLayout.SOUTH, btnRun, -10, SpringLayout.SOUTH, contentPane);
 		springLayout.putConstraint(SpringLayout.EAST, btnRun, -184, SpringLayout.EAST, contentPane);
 		btnRun.setFont(new Font("Verdana", Font.BOLD, 18));
 		btnRun.addActionListener(new ActionListener() {
@@ -241,7 +241,7 @@ public class Main extends JFrame {
 		contentPane.add(lblSeconds);
 		
 		JButton btnClean = new JButton("Clean");
-		springLayout.putConstraint(SpringLayout.SOUTH, btnClean, -15, SpringLayout.SOUTH, contentPane);
+		springLayout.putConstraint(SpringLayout.SOUTH, btnClean, -10, SpringLayout.SOUTH, contentPane);
 		springLayout.putConstraint(SpringLayout.EAST, btnClean, -51, SpringLayout.EAST, contentPane);
 		btnClean.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
