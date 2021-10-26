@@ -1,6 +1,6 @@
-<project name="JavaCompile" default="compile_project" basedir="..">
+<project name="JavaCompile" default="test" basedir="..">
 
-	<target name="compile_project">
+	<target name="test">
 			<echo>Compiling the project</echo>
 			<javac fork="yes" memorymaximumsize="512m" debug="on" srcdir="src/" destdir="bin/" includeantruntime="false">
 				<classpath>
