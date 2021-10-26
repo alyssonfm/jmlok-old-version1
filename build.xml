@@ -1,4 +1,4 @@
-<project name="JavaCompile" default="test" basedir="..">
+<project name="JavaCompile" default="test" basedir="../jmlok-old-version1/">
 
 	<target name="test">
 			<echo>Compiling the project</echo>
