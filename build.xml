@@ -2,7 +2,7 @@
 
 	<target name="test">
 			<echo>Compiling the project</echo>
-			<javac fork="yes" memorymaximumsize="512m" debug="on" srcdir="src/" destdir="bin/" includeantruntime="false">
+			<javac fork="yes" memorymaximumsize="512m" debug="on" srcdir="src/" destdir="src/" includeantruntime="false">
 				<classpath>
 					<fileset dir="lib/">
 						<include name="**/*.jar" />
